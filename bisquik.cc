@@ -47,6 +47,22 @@ struct graph {
     VertexType nverts;
     VertexType *dst;
     EdgeType *p;
+    
+    /** Output the graph in edges format
+     * @return false if any write operation failed
+     */
+    bool write_as_edges(FILE* f) {
+        size_t nedges = 0;
+        int rval = 0;
+        rval = fprintf(f, "%zu %zu\n", (size_t)nverts, (size_t)p[nverts]);
+        if (rval < 0) { return false; }
+        for (VertexType i=0; i<nverts; ++i) {
+            for (EdgeType ei=p[i]; ei < p[i+1]; ++ei) {
+                rval = fprintf(f, "%zu %zu\n", (size_t)i, (size_t)dst[ei]);
+                if (rval < 0) { return false; }
+            }
+        }
+    }
 };
 
 void free_graph(graph g) {
@@ -922,20 +938,6 @@ void random_power_law_degrees(size_t n, double theta, size_t max_degree,
 
 const size_t max_degree_seq_trials = 50;
 
-/**
- * Test if a file exists.
- *
- * @filename the name of the file
- * @return true if the file exists, false otherwise
- */
-bool file_exists(const char* filename)
-{
-    using namespace std;
-    ifstream t(filename);
-    t.close();
-    if (t.fail()) { return false; }
-    else { return true; }
-}
 
 /** Read a file of degrees.
  * The file format is textual and a list of integers:
@@ -971,13 +973,160 @@ bool load_degree_file(const char* filename, std::vector<VertexType>& degrees)
     return true;
 }
 
+/**
+ * @return the number of successful samples.
+ */
+int generate_samples(const char* filename, std::vector<VertexType>& degrees)
+{
+    size_t n = degrees.size();
+    graph g = alloc_graph_from_degrees((VertexType)n, &degrees[0]);
+    bayati_kim_saberi_uniform_sampler generator(g, &degrees[0]);
+    
+    generator.max_retries = opts.trials;
+    if (opts.stats) {
+        generator.collect_statistics();
+    }
+    
+    if (opts.expprob) {
+        generator.sampling_probability = generator.EXPO_PROB;
+    } 
+    else if (opts.approxprob) {
+        generator.sampling_probability = generator.STANDARD_PROB;
+    }
+    
+    int nsamples = 0;
+    for (int si=0; si<opts.samples; ++si) {
+        if (generator.sample()) {
+            std::cout << "successfully generated sample " << si+1 << std::endl;
+            nsamples += 1;
+        } else {
+            std::cout << "failed generating sample " << si+1 << std::endl;
+            continue;
+        }
+        
+        // now figure out how to write out the file
+        int index=1;
+        FILE *gfile = opts.open_graph_file(filename, index);
+        if (!gfile) {
+            // output on STDOUT
+            fprintf(stderr, "Error writing to file, outputing to stdout.");
+            fprintf(stdout, "BEGIN_GRAPH");
+            g.write_as_edges(stdout);
+            fprintf(stdout, "END_GRAPH");
+        } else {
+            g.write_as_edges(gfile);
+        }
+        fclose(gfile);
+        if (opts.stats) {
+            FILE *sfile = opts.open_stats_file(filename, index);
+            if (!sfile) {
+                // output on stdout
+            } else {
+                // dump stats
+            }
+            fclose(sfile);
+        }
+    }
+    free_graph(g);
+    return nsamples;
+}
 
 int main(int argc, char **argv)
 {
     opts.parse_command_line(argc, argv);
     opts.print_options();
-    return 0;
+    if (!opts.validate()) {
+        return (-1);
+    }
     
+    if (opts.seed == 0) {
+        opts.seed = sf_timeseed();
+    }
+    sf_srand(opts.seed);
+    
+    int rval=0;
+    
+    if (opts.powerlaw.size() > 0) {
+        // geneate the degree sequence
+        std::vector<VertexType> degrees(0);
+        
+        size_t n=1000;
+        double theta=2.;
+        size_t max_degree=31;
+        
+        if (!opts.powerlaw_parameters(n, theta, max_degree)) {
+            std::cerr << "error reading powerlaw parameters" << std::endl;
+            return false;
+        }
+        
+        bool graphical=false;
+        degrees.resize(n);
+        std::cout << "generating powerlaw degree distribution with " 
+                  << "n=" << n << " theta=" << theta 
+                  << " max_degree=" << max_degree << std::endl;
+        for (size_t trial=0; trial<max_degree_seq_trials; ++trial) {
+            random_power_law_degrees(n, theta, max_degree, &degrees[0]);
+            if (check_graphical_sequence(n, &degrees[0]) == 1) {
+                graphical=true;
+                break;
+            } else {
+                std::cout << "failed graphical test, trial " << trial+1 << std::endl;
+            }
+        }
+        if (!graphical) {
+            std::cerr << "failed to produce a graphical sequence" << std::endl;
+            return (-1);
+        } else {
+            std::cout << "found graphical sequence " << std::endl;
+        }
+        
+        const char *filename = NULL;
+        if (opts.degfiles.size() > 0) {
+            filename = opts.degfiles[0].c_str();
+        } 
+        int nsamples = generate_samples(filename, degrees);
+        if (nsamples != opts.samples) {
+            std::cout << "only generated " << nsamples << " of "
+                << opts.samples << " graph samples" << std::endl;
+            rval = opts.samples - nsamples;
+        }
+        
+    } else {
+        // all the degree files exist
+        for (size_t fi=0; fi<opts.degfiles.size(); ++fi) {
+            std::string filestr = opts.degfiles[fi];
+            const char* filename = filestr.c_str();
+            // read the degree file
+            std::vector<VertexType> degrees;
+            if (!load_degree_file(filename, degrees)) {
+                std::cerr << "failed reading " << filename << std::endl;
+                return (-1);
+            } else {
+                if (check_graphical_sequence(degrees.size(), &degrees[0]) != 1) {
+                    std::cerr << "degree file " << filename 
+                              << " does not contain a graphical sequence" 
+                              << std::endl;
+                    return (-1);
+                }
+            }
+            std::cout << "using degree distribution from " << filename
+                      << " with n=" << degrees.size() << std::endl;
+                      
+            int nsamples = generate_samples(filename, degrees);
+            if (nsamples != opts.samples) {
+                std::cout << "only generated " << nsamples <<
+                    " of " << opts.samples << " requested samples "
+                    << "for degree file " << filename << std::endl;
+                rval += opts.samples - nsamples;
+            }
+                    
+        }
+    }
+ 
+    return rval;
+}
+
+int old_main(int argc, char**argv) {    
     sf_srand(0);
     
     size_t n=1000;

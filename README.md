@@ -24,6 +24,13 @@ Usage
       -s, --stats  collect sampling statistics
         The statistics are written to <output>.stats
         
+      -d PATH, --dir=PATH  change the output directory
+        The default output name is <degfile>.<k>  Given PATH, 
+        bisquik changes the path on <degfile> to PATH, 
+        and searches for the first empty file with name 
+        <PATH>/<degfile without path>.<k>.edges.  Changing the 
+        output directory affects all other outputs as well.
+        
       -o NAME, --output=NAME  the root output name
         The default output name is <degfile>.<k>  Given NAME, 
         bisquik searches for the first empty file with name 
@@ -47,11 +54,32 @@ Usage
       -a, --approx  Sample edges with probability: (1-di*dj/4m)*ri*rj
           These are the probability used in the paper.
       
-      --seed=<unsigned int>
+      --seed=<unsigned int>  If seed is 0, then the program is seeded
+        based on the current time (the default).  
       
       -p <NVERTS>,<THETA>,<MAXDEG> --powerlaw=<NVERTS>,<THETA>,<MAXDEG>
-        Ignore degfile and 
+        Ignore degfile and use a synthetically generated power-law
+        degree distribution.
       
+Degree File Format
+------------------
+
+The file format is textual and is a list of integers:
+    
+    File: Header\nDegreeList
+    Header: <int:nverts>
+    DegreeList: (<int:degree>\n)*nverts
+
+For example, here is the degree sequence file for a triangle
+with one extra node
+
+    4
+    2
+    2
+    3
+    1
+
+
       
 Acknowledgement
 ---------------

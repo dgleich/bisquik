@@ -1,5 +1,12 @@
 
+CC:=$(CXX)
+CXXFLAGS += -std=c++0x -U__STRICT_ANSI__
 all: bisquik
 
-bisquik: bisquik.cc sf_util.cc sparfun_util.h bisquik_opts.hpp
-	g++ bisquik.cc sf_util.cc -o bisquik -std=c++0x -g
+OBJS=bisquik.o sf_util.o
+
+bisquik.o: bisquik_opts.hpp sparfun_util.h
+
+bisquik: $(OBJS)  	
+	g++ bisquik.o sf_util.o -o bisquik
+	
