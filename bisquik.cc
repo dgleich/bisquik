@@ -25,9 +25,10 @@
 #include <math.h>
 #include <iostream>
 #include <fstream>
+#include <iterator>
 
-#define USE_EDGE_HASHMAP
-//note, using the edge_hashmap is NOT faster than 
+//#define USE_EDGE_HASHMAP
+//note, using the edge_hashmap is NOT faster than linear search currently
 
 #ifdef USE_EDGE_HASHMAP
 #include <unordered_set>
@@ -62,7 +63,24 @@ struct graph {
                 if (rval < 0) { return false; }
             }
         }
+        return true;
     }
+    
+    bool write_as_smat(FILE* f) {
+        size_t nedges = 0;
+        int rval = 0;
+        rval = fprintf(f, "%zu %zu %zu\n", 
+            (size_t)nverts, (size_t)nverts, (size_t)p[nverts]);
+        if (rval < 0) { return false; }
+        for (VertexType i=0; i<nverts; ++i) {
+            for (EdgeType ei=p[i]; ei < p[i+1]; ++ei) {
+                rval = fprintf(f, "%zu %zu 1\n", (size_t)i, (size_t)dst[ei]);
+                if (rval < 0) { return false; }
+            }
+        }
+        return true;
+    }
+        
 };
 
 void free_graph(graph g) {
@@ -328,7 +346,156 @@ struct growing_fixed_degree_graph {
 	}
 };
 
-
+/** 
+ * This routine checks the Erdos-Gallai conditions on a degree
+ * sequence to determine if the sequence is graphical.
+ * A graphical sequence is a sequence of numbers that could
+ * be the list of degrees for an unirected graph.
+ * 
+ * @param begin Must be a multi-pass iterator
+ * @param end The end of the iterator
+ * @return true if the sequence is graphical
+ */
+template <typename VertexSizeTypeItr>
+bool is_graphical_sequence_bucket(VertexSizeTypeItr begin, VertexSizeTypeItr end)
+{
+    typedef typename std::iterator_traits<VertexSizeTypeItr>::value_type VertexSizeType;
+    std::vector<VertexSizeType> residual_degrees(begin, end); 
+    typedef typename std::vector<VertexSizeType>::const_iterator ResIter;
+    // TODO optimize out this second pass by handling the construction
+    // of the residual degrees vector ourselves (and optimizing for the
+    // case when we can preallocate the vector)
+    VertexSizeType max_degree = *(std::max_element(residual_degrees.begin(),
+                                            residual_degrees.end()));
+    VertexSizeType total_degree_mod_2 = 0;
+    // initialize the bucket sort arrays
+    // this list must go up to index max_degree+1, which is size max_degree+2
+    std::vector<size_t> degree_pointer(max_degree+2,0);
+    
+    //printf("checking mod 2\n");
+    for (ResIter ri=residual_degrees.begin(), rend=residual_degrees.end();
+            ri != rend; ++ri) {
+        
+        VertexSizeType degree = *ri;
+        
+        total_degree_mod_2 += (degree % 2); // keep this from overflowing
+        total_degree_mod_2 = total_degree_mod_2 % 2;
+        
+        degree_pointer[degree+1] += 1;
+    }
+    //printf("done checking mod 2\n");
+    
+    size_t cumsum = 0;
+    for (VertexSizeType i = 0; i < max_degree + 2; ++i) {
+        cumsum += degree_pointer[i];
+        degree_pointer[i] = cumsum;
+    }
+    
+    //printf("loading bucket sorted list\n");
+    // this is the last iteration we need over the input
+    for (; begin != end; ++begin) {
+        VertexSizeType degree = *begin;
+        //printf("Input: %i\n", degree);
+        residual_degrees[degree_pointer[degree]] = degree;
+        degree_pointer[degree]+=1;
+    }
+    //printf("finished bucket sorted list\n");
+    
+    //printf("shifted bucket sort pointers\n");
+    // now shift the degrees down by one position
+    for (VertexSizeType d = max_degree+1; d > 0; --d) {
+        degree_pointer[d] = degree_pointer[d-1];
+    }
+    degree_pointer[0] = 0;
+    //printf("done with bucket pointers\n");
+    
+    VertexSizeType last_degree = max_degree;
+    
+    // print out the bucket-sort
+    /*for (size_t i = 0; i<max_degree+2; ++i) {
+        printf("%zu ", degree_pointer[i]);
+    }
+    printf("\n");
+    for (size_t i=0; i<degree_pointer[max_degree+1]; ++i) {
+        printf("%i ", residual_degrees[i]);
+    }
+    printf("\n");*/
+    
+    // run the main part of the algorithm
+    while (1) {
+        
+        // find the last degree with any remaining vertices
+        while (last_degree > 0) {
+            if (degree_pointer[last_degree+1] - degree_pointer[last_degree] == 0) {
+                last_degree -= 1;
+            } else { 
+                break;
+            }
+        }
+        
+        if (last_degree == 0) {
+            // we are done
+            break;
+        }
+        
+        //printf("found last_degree = %i\n", last_degree);
+        
+        size_t pos = degree_pointer[last_degree+1]-1;
+        
+        // get it's degree
+        VertexSizeType degree = residual_degrees[pos];
+        //printf("last_degree = %i, degree = %i\n", last_degree, degree);
+        assert(last_degree == degree);
+        // assign it 0 degree
+        residual_degrees[pos] = 0;
+        
+        // remove this vertex
+        degree_pointer[degree+1] -= 1;
+        
+        // determine how many vertices we need to search backwards
+        // to find enough to satisfy this vertex
+        VertexSizeType first_degree = degree;
+        VertexSizeType rdegree = degree;
+        while (rdegree > 0) {
+            size_t ndegree = degree_pointer[first_degree+1] - 
+                                degree_pointer[first_degree];
+            if (ndegree >= rdegree) {
+                // vertices with degree from first_degree to degree 
+                // provide "degree" vertices
+                break;
+            } else {
+                rdegree -= ndegree;
+                first_degree -= 1; // we need more vertices
+                if (first_degree == 0) {
+                    // this indicates there are not 
+                    // enough vertices left
+                    return false;
+                }
+            }
+            assert(rdegree > 0); // we should have broken above
+        }
+        // now decrement all the vertices in this space
+        // we use the first "rdegree" vertices from first_degree.
+        // and then all the vertices of larger degree
+        for (VertexSizeType curdegree = first_degree; curdegree <= degree; 
+            ++curdegree) 
+        {
+            if (curdegree > first_degree) {
+                // set rdegree to the total number of vertices
+                rdegree = degree_pointer[curdegree+1] - 
+                            degree_pointer[curdegree];
+            }
+            // decrement the first rdegree vertices
+            for (size_t v = 0; v < rdegree; ++v) {
+                residual_degrees[degree_pointer[curdegree]] -= 1;
+                degree_pointer[curdegree] += 1;
+            }
+        }   
+        
+    }
+    
+    return true;
+}
 
 /** 
  * This routine checks the Erdos-Galli conditions on a degree
@@ -351,7 +518,7 @@ int check_graphical_sequence(
     }
     if (total_degree % 2 != 0) {
         return 0;
-    }
+    }   
     if (max_degree > nverts) {
         return 0;
     }
@@ -428,10 +595,10 @@ public:
     VertexType max_degree;
     
     // the underlying graph data provided by the user
-    // TODO it possible for us to manage this memory too
+    // TODO is it possible for us to manage this memory too
     graph gdata;
     
-    // the actual growing degree graph
+    // the actual growing degree graph using memory from g
     growing_fixed_degree_graph g;
     
     // the vector of mini-vertices
@@ -664,18 +831,34 @@ public:
         // if we found an edge
         bool found_edge = false;
         
+        std::vector<int> neighbor_index(nverts,0);
+        
         // now sample among these vertices
         for (VertexType li=0; li<rverts; ++li) {
             // TODO can optimize this search by removing 
             // vertices connected go li with r[i] = 0
             // index the neighbors for O(1) edge checking
             
+            // lookup the vertex
+            VertexType i = rvertset.elements[li];
+            
+            // index the neighbors for O(1) edge checking
+            // TODO check this perf optimization
+            /*for (EdgeType nzi = g.g.p[i]; nzi < g.pend[i]; ++nzi) {
+                neighbor_index[g.g.dsts[nzi]] = 1;
+            }*/
+            
             for (VertexType lj=li+1; lj<rverts; ++lj) {
-                VertexType i = rvertset.elements[li];
+                
                 VertexType j = rvertset.elements[lj];
                 if (i==j || g.is_symmetric_edge(i,j)) {
                     continue;
                 }
+                // TODO: Check this performance optimization
+                //if (i == j || neighbor_index[j]) {
+                    //continue;
+                //}
+                assert(r[j] > 0);
                 double edge_prob = (double)(r[i]*r[j])*edge_probability(i,j);
 				total_prob += edge_prob;
 				if (sf_rand() <= edge_prob/total_prob) {
@@ -687,6 +870,11 @@ public:
                     assert(r[vj] > 0);
 				}
             }
+            
+            // clear the neighbor index
+            /*for (EdgeType nzi = g.g.p[i]; nzi < g.pend[i]; ++nzi) {
+                neighbor_index[g.g.dsts[nzi]] = 1;
+            }*/
         }
 		if (found_edge) {
             // find mini-verts
@@ -706,37 +894,45 @@ public:
         for (VertexType i=0; i<rverts; i++) {
             rvertdegs[i] = r[rvertset.elements[i]];
         }
+        
         if (check_graphical_sequence(rverts, &rvertdegs[0]) == 1) {
+            assert(
+                is_graphical_sequence_bucket(
+                    rvertdegs.begin(), rvertdegs.end()) == true);
             return true;
         } else {
+            assert(
+                is_graphical_sequence_bucket(
+                    rvertdegs.begin(), rvertdegs.end()) == false);
             return false;
         }
     }            
 	
 	bool search_for_edge_few_minis(void) {
-
-        std::cout << "searching for edge with " << curminis 
-                  << " mini-vert and " << rverts << " vertices" << std::endl;
+        if (opts.verbose) {
+            std::cout << "searching for edge with " << curminis <<
+                " mini-vert and " << rverts << " vertices" << std::endl;
+        }
 		
         // check Erdos-Gallai conditions on the residuals
         if (!check_for_graphical_residuals()) {
             return false;
         }
         
-        if ((EdgeType)rverts + (EdgeType)sqrt(nverts) < curminis) {
-            return (search_for_edge_in_verts());
-        } else {
-            return search_for_edge_in_minis();
-        }
-		
+        // this should always be faster now
+        return (search_for_edge_in_verts());
+        
+        //if ((EdgeType)rverts + (EdgeType)sqrt(nverts) < curminis) {
+            //return (search_for_edge_in_verts());
+        //} else {
+            //return search_for_edge_in_minis();
+        //}
 	}
 	
 	bool search_for_edge(void) {
 		// TODO add another option to search when there
 		// are still at lot of mini-vertices left.
-        if (curminis < 10*(EdgeType)sqrt((double)max_degree)) {
-            return search_for_edge_few_minis();
-        } else if (rverts < 10*(EdgeType)sqrt((double)max_degree)) {
+        if (rverts < 10*(EdgeType)sqrt((double)max_degree)) {
             return search_for_edge_few_minis();
         } else {
             // at this point, search is going to be expensive
@@ -753,6 +949,10 @@ public:
             
 	}
     
+    /** Check status of minivertex structure 
+     * This function is only used for debugging our datastructure
+     * for consistency.
+     */
     void check_miniverts(void) {
         std::vector<VertexType> cur_resid(nverts,0);
         for (EdgeType i = 0; i<curminis; ++i) {
@@ -822,7 +1022,10 @@ public:
         
         while (curedges < half_edges) {
 			if (curtries > max_reject) {
-                std::cout << "sampling failed on edge " << curedges << std::endl;
+                if (opts.verbose) {
+                    std::cout << "sampling failed on edge " << 
+                        curedges << std::endl;
+                }
 				switch (max_reject_strategy) {
 				case FAIL_ON_MAX_REJECT:
 					return false;
@@ -880,7 +1083,9 @@ public:
                 check_sample(); // should only be used while debugging
                 return true;
             }
-            std::cout << "failed sample" << std::endl;
+            if (opts.verbose) {
+                std::cout << "failed sample" << std::endl;
+            }
         }
             
         return false;
@@ -1056,7 +1261,7 @@ int main(int argc, char **argv)
         
         if (!opts.powerlaw_parameters(n, theta, max_degree)) {
             std::cerr << "error reading powerlaw parameters" << std::endl;
-            return false;
+            return -1;
         }
         
         bool graphical=false;
@@ -1125,81 +1330,3 @@ int main(int argc, char **argv)
  
     return rval;
 }
-
-int old_main(int argc, char**argv) {    
-    sf_srand(0);
-    
-    size_t n=1000;
-    double theta=2.;
-    size_t max_degree=31;
-    
-    bool degree_file = false;
-    const char* degree_filename = NULL;
-    
-    if (argc > 1) {
-        // check if this is a file or a number
-        if (file_exists(argv[1])) {
-            // we got a file
-            degree_file = true;
-            degree_filename = argv[1];
-        } else {
-            n = (size_t)atoi(argv[1]);
-            if (argc > 2) {
-                theta = (double)atof(argv[2]);
-            }
-            if (argc > 3) {
-                max_degree = (size_t)atof(argv[3]);
-            }
-        } 
-    }
-
-    std::vector<VertexType> degrees(0);
-    
-    if (degree_file) {  
-        if (!load_degree_file(degree_filename, degrees)) {
-            std::cerr << "failed reading " << degree_filename << std::endl;
-            std::cout << "0" << std::endl;
-            return (-1);
-        } else {
-            n = degrees.size();
-            if (check_graphical_sequence(n, &degrees[0]) != 1) {
-                std::cerr << "degree file " << degree_filename 
-                          << " does not contain a graphical sequence" 
-                          << std::endl;
-                std::cout << "0" << std::endl;
-                return (-1);
-            }
-        }
-        std::cout << "using degree distribution from " << degree_filename
-                  << " with n=" << n << std::endl;
-    } else {
-        bool graphical=false;
-        degrees.resize(n);
-        std::cout << "generating powerlaw degree distribution with " 
-                  << "n=" << n << " theta=" << theta 
-                  << " max_degree=" << max_degree << std::endl;
-        for (size_t trial=0; trial<max_degree_seq_trials; ++trial) {
-            random_power_law_degrees(n, theta, max_degree, &degrees[0]);
-            if (check_graphical_sequence(n, &degrees[0]) == 1) {
-                graphical=true;
-                break;
-            } else {
-                std::cout << "failed graphical test, trial " << trial+1 << std::endl;
-            }
-        }
-        if (!graphical) {
-            std::cerr << "failed to produce a graphical sequence" << std::endl;
-            std::cout << "0" << std::endl;
-            return (-1);
-        } else {
-            std::cout << "found graphical sequence " << std::endl;
-        }
-    }
-        
-    graph g = alloc_graph_from_degrees((VertexType)n, &degrees[0]);
-    bayati_kim_saberi_uniform_sampler generator(g, &degrees[0]);
-    std::cout << generator.sample() << std::endl;
-    
-    return (0);
-}
-

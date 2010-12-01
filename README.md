@@ -78,7 +78,61 @@ with one extra node
     2
     3
     1
+    
+High level parameters
+---------------------
 
+There are three levels of sampling here:
+
+i) samples - independent realizations of the prescribe degree graph
+ii) trials - the number of repetitions of the Bayati-Kim-Saberi 
+  algorithm until we generate a successful sample
+iii) edge samples - the number of repetition of the fast edge sampling
+  procedure before reverting to searching for an edge (slow)
+
+for i in xrange(samples):
+  for j in xrange(trials):
+    success = true
+    G = new_graph(degrees)
+    while G.edges_remaining():
+      for k in xrange(max_edge_samples):
+        found = false
+        if (G.sample_edge()): # try to find an edge quickly
+          found = true
+          break
+      if not found:
+        if G.still_valid(): # check if we made a mistake
+          G.search_for_edge()
+        else:
+          success = false # if we did, quick this trial here
+          break
+    if success:
+      G.write_graph()
+      break # we don't need any other trials
+  # move on to the next sample
+        
+      
+      
+
+
+Return value
+------------
+
+The return value of the program is 0 to indicate a successful run.
+A negative return value indicates an error with the parameters.
+Also, a positive return value indicates that not all requested
+samples were generated.  The positive value is the number of
+missing samples.
+      
+Statistics collection
+---------------------
+
+stats to collect:
+
+<vi> <vj> <ri> <rj> <di> <dj> <nsamples> <search>
+
+edge_prob is <ri>*<rj>*sample_prob/4m
+search is <0> or <1>
 
       
 Acknowledgement
