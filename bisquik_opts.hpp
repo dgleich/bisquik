@@ -118,10 +118,12 @@ struct bisquik_options {
     std::string output;
     unsigned int samples;
     unsigned int trials;
+    unsigned int max_reject;
     std::string output_dir;
     std::string output_fixed;
     std::string graph_filename;
     std::string stats_filename;
+    std::string format;
     
     unsigned int seed;
     
@@ -131,7 +133,7 @@ struct bisquik_options {
     
     bisquik_options() 
     : verbose(false), stats(false), expprob(true), approxprob(false),
-        samples(1), trials(50), seed(0)
+        samples(1), trials(50), max_reject(100), format("edges"), seed(0)
     {}
     
     void print_options() {
@@ -139,12 +141,14 @@ struct bisquik_options {
         printf("stats: %i\n", stats);
         printf("samples: %u\n", samples);
         printf("trials: %u\n", trials);
+        printf("rejects: %u\n", max_reject);
         printf("seed: %u\n", seed);
         printf("output: %s\n", output.c_str());
         printf("output_dir: %s\n", output_dir.c_str());
         printf("graph_filename: %s\n", graph_filename.c_str());
         printf("stats_filename: %s\n", stats_filename.c_str());
         printf("powerlaw: %s\n", powerlaw.c_str());
+        printf("format: %s\n", format.c_str());
         
         for (size_t i=0; i<degfiles.size(); ++i) {
             printf("degfile: %s\n", degfiles[i].c_str());
@@ -169,6 +173,8 @@ struct bisquik_options {
                 "Number of graph samples.",false);
         as >> argstream::parameter('t',"trials",trials,
                 "Trials per sample.",false);
+        as >> argstream::parameter('r',"rejections",max_reject,
+                "Rejection steps before searching.",false);
         as >> argstream::parameter('f',"fixed",output_fixed,
                 "A fixed output name.",false);
         as >> argstream::parameter("graphfile",graph_filename,
@@ -183,6 +189,9 @@ struct bisquik_options {
                 "Select edges with approximate exponential probability");
         as >> argstream::parameter('p',"powerlaw",powerlaw,
                 "Sample from a power law to produce the degree sequence.",
+                false);
+        as >> argstream::parameter("format",format,
+                "The graph output format: \'edges\' or \'smat\'",
                 false);
         
         as >> argstream::values<std::string>(std::back_inserter(degfiles),"degfiles");
@@ -264,11 +273,11 @@ struct bisquik_options {
                 }
             }
         }
+        
+        // TODO check format.
+        
         return true;
     }
-    
-    
-    
     
     // handle the output dir option
     std::string _handle_path(std::string filename, bool file=false) {
@@ -315,19 +324,21 @@ struct bisquik_options {
             return fopen(_handle_path(graph_filename).c_str(), "wt");
         }
         
+        std::string ext = "." + format;
+        
         if (output_fixed.size() > 0) {
-            return fopen(_handle_path(output_fixed + ".edges").c_str(), "wt");
+            return fopen(_handle_path(output_fixed + ext).c_str(), "wt");
         }
         
         if (output.size() > 0) {
             index = 1;
-            FILE* f = _find_filename_combo(_handle_path(output), index, ".edges");
+            FILE* f = _find_filename_combo(_handle_path(output), index, ext.c_str());
             return f;
         } 
         
         if (filename) {
             index = 1;
-            FILE* f = _find_filename_combo(_handle_path(filename), index, ".edges");
+            FILE* f = _find_filename_combo(_handle_path(filename), index, ext.c_str());
             return f;
         }
         

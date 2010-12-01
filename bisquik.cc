@@ -1084,7 +1084,7 @@ public:
                 return true;
             }
             if (opts.verbose) {
-                std::cout << "failed sample" << std::endl;
+                std::cout << "failed sample " << s+1  << std::endl;
             }
         }
             
@@ -1188,6 +1188,7 @@ int generate_samples(const char* filename, std::vector<VertexType>& degrees)
     bayati_kim_saberi_uniform_sampler generator(g, &degrees[0]);
     
     generator.max_retries = opts.trials;
+    generator.max_reject = opts.max_reject;
     if (opts.stats) {
         generator.collect_statistics();
     }
@@ -1216,10 +1217,18 @@ int generate_samples(const char* filename, std::vector<VertexType>& degrees)
             // output on STDOUT
             fprintf(stderr, "Error writing to file, outputing to stdout.");
             fprintf(stdout, "BEGIN_GRAPH");
-            g.write_as_edges(stdout);
+            if (opts.format.compare("smat") == 0) {
+                g.write_as_smat(stdout);
+            } else if (opts.format.compare("edges") == 0) {
+                g.write_as_edges(stdout);
+            }
             fprintf(stdout, "END_GRAPH");
         } else {
-            g.write_as_edges(gfile);
+            if (opts.format.compare("smat") == 0) {
+                g.write_as_smat(gfile);
+            } else if (opts.format.compare("edges") == 0) {
+                g.write_as_edges(gfile);
+            }
         }
         fclose(gfile);
         if (opts.stats) {

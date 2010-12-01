@@ -2,12 +2,10 @@
 
 
 CC:=$(CXX)
-CXXFLAGS += -std=c++0x -U__STRICT_ANSI__
+CXXFLAGS += -std=c++0x -U__STRICT_ANSI__ -O3
 all: bisquik
 
 .PHONY: all clean
-
-
 
 OBJS=bisquik.o sf_util.o
 
