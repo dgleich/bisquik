@@ -889,23 +889,20 @@ public:
         
     bool check_for_graphical_residuals(void) {
         assert(rverts == rvertset.size());
+        
         // TODO figure out a way to avoid this copy
         std::vector<VertexType> rvertdegs(rverts);
         for (VertexType i=0; i<rverts; i++) {
             rvertdegs[i] = r[rvertset.elements[i]];
         }
         
-        if (check_graphical_sequence(rverts, &rvertdegs[0]) == 1) {
-            assert(
-                is_graphical_sequence_bucket(
-                    rvertdegs.begin(), rvertdegs.end()) == true);
+        return is_graphical_sequence_bucket(rvertdegs.begin(),rvertdegs.end());
+        
+        /*if (check_graphical_sequence(rverts, &rvertdegs[0]) == 1) {
             return true;
         } else {
-            assert(
-                is_graphical_sequence_bucket(
-                    rvertdegs.begin(), rvertdegs.end()) == false);
             return false;
-        }
+        }*/
     }            
 	
 	bool search_for_edge_few_minis(void) {

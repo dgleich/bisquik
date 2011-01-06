@@ -422,7 +422,7 @@ struct bisquik_options {
         }
         
         if (parts.size() >= 3) {
-            std::string p = parts[1];
+            std::string p = parts[2];
             if (p.compare("_") != 0) {
                 // parse a double for theta
                 bool rval = false;
