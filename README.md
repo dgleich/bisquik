@@ -1,15 +1,15 @@
-bisquik
+bakisag
 ======= 
-bisquik randomly samples a graph with a prescribed degree distribution.
+bakisag randomly samples a graph with a prescribed degree distribution.
 
-It implements the algorithm from Bayati, Kim, and Saberi, Algorithmica
-[doi:...]
+It implements the algorithm from Bayati, Kim, and Saberi, 2010
+Algorithmica 58(4):860-910 [doi:10.1007/s00453-009-9340-1]
 
 
 Usage
 -----
 
-    bisquik [options] degfile
+    bakisag [options] degfile
     
     Generate a random sample of a graph with a prescribed degree 
     distribution.  The program reads the degrees in <degfile>
@@ -112,9 +112,6 @@ for i in xrange(samples):
   # move on to the next sample
         
       
-      
-
-
 Return value
 ------------
 
@@ -134,11 +131,20 @@ stats to collect:
 edge_prob is <ri>*<rj>*sample_prob/4m
 search is <0> or <1>
 
-      
 Acknowledgement
 ---------------
 
-Uses the argparse.h library from ...
+This code uses the argparse.h library from Xavier Décoret.
+
+Notice
+------
+
+Copyright 2011 Sandia Corporation. 
+Under the terms of Contract DE-AC04-94AL85000, 
+there is a non-exclusive license for use of 
+this work by or on behalf of the U.S. Government.
+Export of this program may require a license 
+from the United States Government.
 
 
 

@@ -6,7 +6,7 @@
 /*
  * David F. Gleich
  * Copyright, 2008-2010
- * Developed while working at Microsoft Corporation, Stanford University,
+ * Developed while working at Stanford University, Microsoft Corporation,
  * the University of British Columbia, and Sandia National Labs.
  */
 

@@ -17,6 +17,32 @@
  * @author David F. Gleich
  */
 
+/*
+ * Copyright 2011 Sandia Corporation. 
+ * Under the terms of Contract DE-AC04-94AL85000, 
+ * there is a non-exclusive license for use of 
+ * this work by or on behalf of the U.S. Government.
+ * Export of this program may require a license from
+ * the United States Government.
+ */
+
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *       
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *      
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301, USA.
+ */
+
 #include <assert.h>
 #include <vector>
 #include <algorithm>
@@ -1244,7 +1270,9 @@ int generate_samples(const char* filename, std::vector<VertexType>& degrees)
 
 int main(int argc, char **argv)
 {
-    opts.parse_command_line(argc, argv);
+    if (!opts.parse_command_line(argc, argv)) {
+        return (-1);
+    }
     opts.print_options();
     if (!opts.validate()) {
         return (-1);
