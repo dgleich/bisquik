@@ -232,12 +232,14 @@ struct bisquik_options {
         } 
         
         // check for unused options
+        std::cerr << "here" << std::endl;
         
-        
-        if (as.isOk()) {
+        if (!as.isOk()) {
             std::cerr << as.errorLog() << std::endl;
             return false;
         }
+        
+        return true;
     }
     
     bool _fixed_output() {
