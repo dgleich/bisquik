@@ -446,6 +446,7 @@ struct bisquik_options {
                 if (!rval || theta<=0) {
                     std::cerr << "the powerlaw exponent parameter \'" <<
                         p << "\' is not a valid double > 0" << std::endl;
+                    return false;
                 }
             }
         }
@@ -459,6 +460,7 @@ struct bisquik_options {
                 if (!rval) {
                     std::cerr << "the powerlaw max_degree parameter \'" <<
                         p << "\' is not a valid integer > 0" << std::endl;
+                    return false;
                 }
             }
         }
