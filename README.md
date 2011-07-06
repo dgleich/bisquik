@@ -1,15 +1,15 @@
-bakisag
+bisquik
 ======= 
-bakisag randomly samples a graph with a prescribed degree distribution.
+bisquik randomly samples a graph with a prescribed degree distribution.
 
 It implements the algorithm from Bayati, Kim, and Saberi, 2010
-Algorithmica 58(4):860-910 [doi:10.1007/s00453-009-9340-1]
+Algorithmica 58(4):860-910 [doi:10.1007/s00453-009-9340-1](http://dx.doi.org/10.1007/s00453-009-9340-1)
 
 
 Usage
 -----
 
-    bakisag [options] degfile
+    bisquik [options] degfile
     
     Generate a random sample of a graph with a prescribed degree 
     distribution.  The program reads the degrees in <degfile>
@@ -139,12 +139,24 @@ This code uses the argparse.h library from Xavier Décoret.
 Notice
 ------
 
-Copyright 2011 Sandia Corporation. 
-Under the terms of Contract DE-AC04-94AL85000, 
-there is a non-exclusive license for use of 
-this work by or on behalf of the U.S. Government.
-Export of this program may require a license 
-from the United States Government.
+Copyright (2011) Sandia Corporation. Under the terms of Contract 
+DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government 
+retains certain rights in this software.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+       
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+      
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+MA 02110-1301, USA.
 
 
 
