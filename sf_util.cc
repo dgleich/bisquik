@@ -5,7 +5,7 @@
 
 /*
  * David F. Gleich
- * Copyright, 2008-2010
+ * Copyright, 2008-2011
  * Developed while working at Stanford University, Microsoft Corporation,
  * the University of British Columbia, and Sandia National Labs.
  */
@@ -56,15 +56,15 @@ double sf_time()
 
 tr1ns::mt19937 sparfun_rand;
 
-typedef tr1ns::mt19937                                        generator_t;
-typedef tr1ns::uniform_real<double>                           distribution_t;
-typedef tr1ns::variate_generator<generator_t, distribution_t> variate_t;
-variate_t sparfun_rand_unif(sparfun_rand, distribution_t(0.0, 1.0));
+//typedef tr1ns::mt19937                                  generator_t;
+//typedef tr1ns::uniform_real_distribution<double>        distribution_t;
+//typedef tr1ns::variate_generator<generator_t, distribution_t> variate_t;
+//variate_t sparfun_rand_unif(sparfun_rand, distribution_t(0.0, 1.0));
 
 void sf_srand(unsigned long seed)
 {
   sparfun_rand.seed(seed);
-  sparfun_rand_unif = variate_t(sparfun_rand, distribution_t(0.0, 1.0));
+  //sparfun_rand_unif = variate_t(sparfun_rand, distribution_t(0.0, 1.0));
 }
 
 
@@ -78,36 +78,36 @@ unsigned long sf_timeseed(void)
 
 double sf_rand(double min0, double max0)
 {
-  tr1ns::uniform_real<double> dist(min0,max0);
-  return dist(sparfun_rand_unif);
+  tr1ns::uniform_real_distribution<double> dist(min0,max0);
+  return dist(sparfun_rand);
 }
 
 unsigned char sf_randbyte(void)
 {
-  tr1ns::uniform_int<unsigned char> dist(0,255);
-  return dist(sparfun_rand_unif);   
+  tr1ns::uniform_int_distribution<unsigned char> dist(0,255);
+  return dist(sparfun_rand);   
 }
 
 unsigned int sf_rand_uint(void)
 {
-  tr1ns::uniform_int<unsigned int> 
+  tr1ns::uniform_int_distribution<unsigned int> 
             dist(0,std::numeric_limits<unsigned int>::max());
-  return dist(sparfun_rand_unif);
+  return dist(sparfun_rand);
 }
 
 unsigned int sf_rand_size(size_t maxval)
 {
     assert(maxval > 0);
-    tr1ns::uniform_int<size_t> 
+    tr1ns::uniform_int_distribution<size_t> 
             dist(0,maxval-1);
-  return dist(sparfun_rand_unif);
+  return dist(sparfun_rand);
 }
 
 
 int sf_randint(int min, int max)
 {
-  tr1ns::uniform_int<int> dist(min,max);
-  return dist(sparfun_rand_unif);
+  tr1ns::uniform_int_distribution<int> dist(min,max);
+  return dist(sparfun_rand);
 }
 
 /** 
